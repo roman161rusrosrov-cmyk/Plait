@@ -5,7 +5,9 @@ on:
     branches: [ main ]
     paths:
       - 'Repair-DLSSNR.ps1'
+      - 'AUTO_DLSS5.ps1'
       - 'START_FIX.cmd'
+      - 'START_DLSS5.cmd'
       - 'README.md'
       - '.github/workflows/release.yml'
   workflow_dispatch:
@@ -23,44 +25,53 @@ jobs:
       - name: Validate Windows PowerShell 5.1 syntax
         shell: powershell
         run: |
-          $tokens = $null
-          $errors = $null
-          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path '.\Repair-DLSSNR.ps1'), [ref]$tokens, [ref]$errors)
-          if ($errors.Count -gt 0) {
-            $errors | Format-List *
-            exit 1
+          $files = @('.\Repair-DLSSNR.ps1', '.\AUTO_DLSS5.ps1')
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors)
+            if ($errors.Count -gt 0) {
+              Write-Host "Syntax errors in $file"
+              $errors | Format-List *
+              exit 1
+            }
+            Write-Host "PowerShell 5.1 syntax validation passed: $file"
           }
-          Write-Host 'PowerShell 5.1 syntax validation passed.'
 
       - name: Build ZIP
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path dist -Force | Out-Null
           Copy-Item Repair-DLSSNR.ps1 dist\
+          Copy-Item AUTO_DLSS5.ps1 dist\
           Copy-Item START_FIX.cmd dist\
+          Copy-Item START_DLSS5.cmd dist\
           Copy-Item README.md dist\
-          Compress-Archive -Path dist\* -DestinationPath DLSSNR-Fixer-Cyberpunk-v1.1.0.zip -Force
+          Compress-Archive -Path dist\* -DestinationPath DLSSNR-Fixer-Cyberpunk-v1.2.0.zip -Force
 
       - name: Create or update release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v1.1.0'
-          $asset = 'DLSSNR-Fixer-Cyberpunk-v1.1.0.zip'
+          $tag = 'v1.2.0'
+          $asset = 'DLSSNR-Fixer-Cyberpunk-v1.2.0.zip'
           $notes = @'
-          DLSSNR Fixer v1.1.0
+          DLSSNR Fixer / Auto Launcher v1.2.0
 
-          One-click mode:
-          - Automatically finds Cyberpunk 2077 bin\x64
-          - Automatically downloads DLSS NR 310.8.0 from RankFTW/rhi-repo
-          - Verifies the upstream ZIP SHA-256 before extraction
-          - Verifies nvngx_dlssnr.dll SHA-256
-          - Requires a valid NVIDIA Authenticode signature
-          - Backs up the current DLL
-          - Replaces it automatically
-          - Restores the previous state if final validation fails
-          - No manual DLL selection
+          New automatic launch mode:
+          - START_DLSS5.cmd prepares everything and launches Cyberpunk 2077
+          - Automatically finds the game
+          - Automatically validates or repairs nvngx_dlssnr.dll
+          - Verifies upstream ZIP SHA-256
+          - Verifies DLL SHA-256 and NVIDIA Authenticode signature
+          - Creates DLL backups before replacement
+          - Detects installed renodx-dlss5*.addon64
+          - Backs up ReShade.ini
+          - Automatically adds the detected DLSS5 addon to [ADDON] LoadFromDllMain
+          - Preserves other LoadFromDllMain entries
+          - Performs final validation before game launch
+          - Windows PowerShell 5.1 syntax is CI-tested
 
           Expected DLL SHA-256:
           E16BCF15E16E13F527491CDF7845B2FE6521A738D8F7C9C721866A8496E1FC8E
@@ -75,5 +86,5 @@ jobs:
           if ($LASTEXITCODE -eq 0) {
             gh release upload $tag $asset --clobber
           } else {
-            gh release create $tag $asset --title 'DLSSNR Fixer v1.1.0' --notes $notes --target main
+            gh release create $tag $asset --title 'DLSSNR Fixer / Auto Launcher v1.2.0' --notes $notes --target main
           }
