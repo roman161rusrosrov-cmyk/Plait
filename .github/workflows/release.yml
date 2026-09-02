@@ -27,34 +27,34 @@ jobs:
           Copy-Item Repair-DLSSNR.ps1 dist\
           Copy-Item START_FIX.cmd dist\
           Copy-Item README.md dist\
-          Compress-Archive -Path dist\* -DestinationPath DLSSNR-Fixer-Cyberpunk-v1.0.0.zip -Force
+          Compress-Archive -Path dist\* -DestinationPath DLSSNR-Fixer-Cyberpunk-v1.0.1.zip -Force
 
       - name: Create or update release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v1.0.0'
+          $tag = 'v1.0.1'
           $notes = @'
-          DLSSNR Fixer v1.0.0
+          DLSSNR Fixer v1.0.1
 
-          - Автопоиск Cyberpunk 2077\bin\x64
-          - Поиск рабочей nvngx_dlssnr.dll на ПК
-          - Проверка SHA-256
-          - Проверка цифровой подписи NVIDIA
-          - Backup старой DLL
-          - Безопасная замена только после валидации
-          - Автовосстановление при ошибке
+          Fixes:
+          - Windows PowerShell 5.1 parser/encoding issue fixed
+          - Script and launcher are ASCII-safe
+          - Cyberpunk path detection improved
+          - Valid NVIDIA signature is required
+          - SHA-256 validation is required before replacement
+          - Existing DLL is backed up before replacement
 
-          Проверенный SHA-256:
+          Expected SHA-256:
           E16BCF15E16E13F527491CDF7845B2FE6521A738D8F7C9C721866A8496E1FC8E
 
-          Важно: DLL NVIDIA в релиз не включена.
+          NVIDIA DLL is not bundled in this release.
           '@
 
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag DLSSNR-Fixer-Cyberpunk-v1.0.0.zip --clobber
+            gh release upload $tag DLSSNR-Fixer-Cyberpunk-v1.0.1.zip --clobber
           } else {
-            gh release create $tag DLSSNR-Fixer-Cyberpunk-v1.0.0.zip --title 'DLSSNR Fixer v1.0.0' --notes $notes --target main
+            gh release create $tag DLSSNR-Fixer-Cyberpunk-v1.0.1.zip --title 'DLSSNR Fixer v1.0.1' --notes $notes --target main
           }
