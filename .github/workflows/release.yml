@@ -20,6 +20,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate Windows PowerShell 5.1 syntax
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path '.\Repair-DLSSNR.ps1'), [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) {
+            $errors | Format-List *
+            exit 1
+          }
+          Write-Host 'PowerShell 5.1 syntax validation passed.'
+
       - name: Build ZIP
         shell: pwsh
         run: |
@@ -27,34 +39,41 @@ jobs:
           Copy-Item Repair-DLSSNR.ps1 dist\
           Copy-Item START_FIX.cmd dist\
           Copy-Item README.md dist\
-          Compress-Archive -Path dist\* -DestinationPath DLSSNR-Fixer-Cyberpunk-v1.0.1.zip -Force
+          Compress-Archive -Path dist\* -DestinationPath DLSSNR-Fixer-Cyberpunk-v1.1.0.zip -Force
 
       - name: Create or update release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = 'v1.0.1'
+          $tag = 'v1.1.0'
+          $asset = 'DLSSNR-Fixer-Cyberpunk-v1.1.0.zip'
           $notes = @'
-          DLSSNR Fixer v1.0.1
+          DLSSNR Fixer v1.1.0
 
-          Fixes:
-          - Windows PowerShell 5.1 parser/encoding issue fixed
-          - Script and launcher are ASCII-safe
-          - Cyberpunk path detection improved
-          - Valid NVIDIA signature is required
-          - SHA-256 validation is required before replacement
-          - Existing DLL is backed up before replacement
+          One-click mode:
+          - Automatically finds Cyberpunk 2077 bin\x64
+          - Automatically downloads DLSS NR 310.8.0 from RankFTW/rhi-repo
+          - Verifies the upstream ZIP SHA-256 before extraction
+          - Verifies nvngx_dlssnr.dll SHA-256
+          - Requires a valid NVIDIA Authenticode signature
+          - Backs up the current DLL
+          - Replaces it automatically
+          - Restores the previous state if final validation fails
+          - No manual DLL selection
 
-          Expected SHA-256:
+          Expected DLL SHA-256:
           E16BCF15E16E13F527491CDF7845B2FE6521A738D8F7C9C721866A8496E1FC8E
 
-          NVIDIA DLL is not bundled in this release.
+          Upstream package:
+          RankFTW/rhi-repo - dlssnr-310.8.0
+
+          NVIDIA DLL is downloaded at runtime and is not bundled in this release.
           '@
 
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag DLSSNR-Fixer-Cyberpunk-v1.0.1.zip --clobber
+            gh release upload $tag $asset --clobber
           } else {
-            gh release create $tag DLSSNR-Fixer-Cyberpunk-v1.0.1.zip --title 'DLSSNR Fixer v1.0.1' --notes $notes --target main
+            gh release create $tag $asset --title 'DLSSNR Fixer v1.1.0' --notes $notes --target main
           }
